@@ -1,0 +1,30 @@
+﻿using System;
+using System.Collections.Generic;
+using Objects;
+using UnityEngine;
+
+namespace ScriptableObjects
+{
+    [CreateAssetMenu(fileName = "BrickColors", menuName = "Game/Brick/Colors", order = 0)]
+    public class BrickColors : ScriptableObject
+    {
+        public List<BrickColor> colors;
+
+        public void ChangeColor(BrickManager target)
+        {
+            var targetSpriteRenderer = target.GetComponent<SpriteRenderer>();
+            if (targetSpriteRenderer == null)
+                return;
+            
+            var color = colors.Find(c => c.type == target.type);
+            targetSpriteRenderer.color = color?.color ?? Color.white;
+        }
+    }
+
+    [Serializable]
+    public class BrickColor
+    {
+        public Color color;
+        public BrickType type;
+    }
+}
