@@ -1,5 +1,5 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Linq;
+using Objects;
 using UnityEngine;
 using Grid = Objects.Grid;
 
@@ -9,12 +9,15 @@ public class GridManager : MonoBehaviour
     public GameObject backgroundGridPrefab;
     public Transform backgroundParent;
 
-    [Header("Grid")]
-    public Grid grid;
-
+    [Header("Brick")]
     public BrickManager brickPrefab;
-
     public Transform brickParent;
+
+    [Header("Grid")] 
+    public bool proceduralGenerateGrid;
+    public bool randomizeGrid;
+    public int seed;
+    public Grid grid;
 
     private void Start()
     {
@@ -39,14 +42,40 @@ public class GridManager : MonoBehaviour
 
     private void GenerateGrid()
     {
+        if (proceduralGenerateGrid)
+        {
+            grid.GenerateLevel(seed);
+        }
+
+        if (randomizeGrid)
+        {
+            grid.RandomizeLevel(seed);   
+        }
+
         foreach (var brick in grid.content)
         {
-            var newBrick = Instantiate(brickPrefab, brickParent);
-            newBrick.transform.localPosition = brick.position;
-            newBrick.type = brick.type;
-            newBrick.initialFacingDirection = brick.facingDirection;
-            newBrick.camera = Camera.main;
-            newBrick.grid = this;
+            GenerateBrick(brick);
         }
+    }
+
+    private void GenerateBrick(Brick brick)
+    {
+        var newBrick = Instantiate(brickPrefab, brickParent);
+        newBrick.transform.localPosition = brick.position;
+        newBrick.type = brick.type;
+        newBrick.initialFacingDirection = brick.facingDirection;
+        newBrick.mainCamera = Camera.main;
+        newBrick.gridManager = this;
+        newBrick.CreateConnectors(brick.connectors);
+    }
+
+    public bool MoveBrickToPosition(Transform brick, Vector2 brickNewPosition, Vector2 brickLastPosition)
+    {
+        var isBrickAlreadyInPosition = grid.content.Exists(b => b.position == brickNewPosition);
+
+        var newPosition = isBrickAlreadyInPosition ? brickLastPosition : brickNewPosition;
+        grid.content.Find(b => b.position == brickLastPosition).position = newPosition;
+        brick.localPosition = newPosition;
+        return !isBrickAlreadyInPosition;
     }
 }

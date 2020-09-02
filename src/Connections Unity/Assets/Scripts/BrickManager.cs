@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using Objects;
 using ScriptableObjects;
 using UnityEngine;
@@ -6,40 +8,50 @@ using Random = UnityEngine.Random;
 
 public class BrickManager : MonoBehaviour
 {
-    public Camera camera;
-    public GridManager grid;
+    [Header("External components")]
+    public Camera mainCamera;
+    public GridManager gridManager;
+    public BrickColors colors;
+    
+    [Header("Brick variables")]
     public BrickType type;
     public Direction initialFacingDirection;
-    private Direction _facingDirection;
-    public BrickColors colors;
 
+    [Header("Connector")]
+    public GameObject connectorPrefab;
+
+    private Direction _facingDirection;
     private bool _isMoving;
 
     private Vector3 _lastMousePosition;
+    private Vector2 _lastPosition;
 
-    private bool IsVertical => (type & BrickType.Vertical) != 0;
-    private bool IsHorizontal => (type & BrickType.Horizontal) != 0;
-    private bool IsRotation => (type & BrickType.Rotation) != 0;
+    public bool IsVertical => (type & BrickType.Vertical) != 0;
+    public bool IsHorizontal => (type & BrickType.Horizontal) != 0;
+    public bool IsRotation => (type & BrickType.Rotation) != 0;
+
+    private const float ConnectorBlockedPosition = 0.5625f;
 
     private void Start()
     {
         colors.ChangeColor(this);
         _facingDirection = initialFacingDirection;
-        transform.rotation = Quaternion.Euler(0, 0, 180f - 90f * (int)_facingDirection);
+        transform.rotation = Quaternion.Euler(0, 0, _facingDirection.ToAngleRotation());
     }
 
     private void OnMouseUp()
     {
-        Debug.Log($"You clicked me {name}");
-
         if (IsRotation && !_isMoving)
         {
             RotateBrick();
         }
 
-        _isMoving = false;
-
-        SnapToGrid();
+        if (_isMoving)
+        {
+            _isMoving = false;
+            var newPosition = SnapToGrid();
+            gridManager.MoveBrickToPosition(transform, newPosition, _lastPosition);
+        }
     }
 
     private void OnMouseOver()
@@ -54,10 +66,14 @@ public class BrickManager : MonoBehaviour
 
         if (Vector3.Distance(Input.mousePosition, _lastMousePosition) < .1f)
             return;
+
+        if (!_isMoving)
+        {
+            _lastPosition = transform.localPosition;
+            _isMoving = true;
+        }
         
-        _isMoving = true;
-        
-        var worldPosition = camera.ScreenToWorldPoint(Input.mousePosition);
+        var worldPosition = mainCamera.ScreenToWorldPoint(Input.mousePosition);
         worldPosition.z = 0;
         if (IsHorizontal && !IsVertical)
         {
@@ -71,70 +87,96 @@ public class BrickManager : MonoBehaviour
         transform.position = worldPosition;
     }
 
-    private void SnapToGrid()
+    private Vector2 SnapToGrid()
     {
-        var localX = Mathf.RoundToInt(transform.localPosition.x);
-        var localY = Mathf.RoundToInt(transform.localPosition.y);
+        var localPosition = transform.localPosition;
+        var localX = Mathf.RoundToInt(localPosition.x);
+        var localY = Mathf.RoundToInt(localPosition.y);
+
+        var width = gridManager.grid.width;
+        var height = gridManager.grid.height;
         
         if (localX < 0)
             localX = 0;
         if (localY < 0)
             localY = 0;
-        if (localX > grid.grid.width)
-            localX = grid.grid.width;
-        if(localY > grid.grid.height)
-            localY = grid.grid.height;
+        if (localX >= width)
+            localX = width - 1;
+        if(localY >= height)
+            localY = height - 1;
         
-        transform.localPosition = new Vector3(localX, localY, 0);
-
+        return new Vector2(localX, localY);
     }
 
     private void RotateBrick()
     {
         _facingDirection = (Direction)(((int)_facingDirection + 1) % 4);
-        transform.rotation = Quaternion.Euler(0, 0, 180f - 90f * (int)_facingDirection);
+        transform.rotation = Quaternion.Euler(0, 0, _facingDirection.ToAngleRotation());
     }
 
-    public void RandomizeVertical(int width)
+    public void CreateConnectors(List<Connector> connectors)
     {
-        if (!IsVertical)
-            return;
-
-        var randomPosition = Random.Range(0, width);
-        transform.localPosition = new Vector3(transform.localPosition.x, randomPosition, 0);
+        CreateConnectorsOnDirection(connectors, Direction.Up);
+        CreateConnectorsOnDirection(connectors, Direction.Right);
+        CreateConnectorsOnDirection(connectors, Direction.Left);
+        CreateConnectorsOnDirection(connectors, Direction.Down);
     }
 
-    public void RandomizeHorizontal(int height)
+    private void CreateConnectorsOnDirection(List<Connector> connectors, Direction direction)
     {
-        if (!IsHorizontal)
-            return;
+        var numberOfConnectors = connectors
+            .Where(c => c.direction == direction)
+            .Sum(c => c.size);
 
-        var randomPosition = Random.Range(0, height);
-        transform.localPosition = new Vector3(randomPosition, transform.localPosition.y, 0);
-    }
-
-    public void RandomizeRotation()
-    {
-        if (!IsRotation)
-            return;
-
-        var randomDirection = Random.Range(0, 4);
-        switch (randomDirection)
+        var positions = new List<float>();
+        
+        switch (numberOfConnectors)
         {
-            case 0:
-                _facingDirection = Direction.Up;
-                break;
             case 1:
-                _facingDirection = Direction.Right;
+                positions.Add(0);
                 break;
             case 2:
-                _facingDirection = Direction.Down;
+                positions.AddRange(new[] {-0.1f, 0.1f});
                 break;
             case 3:
-                _facingDirection = Direction.Left;
+                positions.AddRange(new[] {-0.2f, 0f, 0.2f});
+                break;
+            case 4:
+                positions.AddRange(new[] {-0.3f, -0.1f, 0.1f, 0.3f});
                 break;
         }
 
-        transform.rotation = Quaternion.Euler(0, 0, 180f - 90f * (int)_facingDirection);
+        var connectorPoses = positions.Select(p =>
+            new Pose(ConnectorPosition(direction, p), Quaternion.Euler(0, 0, direction.ToAngleRotation())));
+
+        foreach (var pose in connectorPoses)
+        {
+            var connector = Instantiate(connectorPrefab, transform);
+            connector.transform.localPosition = pose.position;
+            connector.transform.localRotation = pose.rotation;
+        }
+    }
+
+    private Vector2 ConnectorPosition(Direction direction, float position)
+    {
+        switch (direction)
+        {
+            case Direction.Up:
+                return new Vector2(position, ConnectorBlockedPosition);
+            case Direction.Left:
+                return new Vector2(-ConnectorBlockedPosition, position);
+            case Direction.Right:
+                return new Vector2(ConnectorBlockedPosition, position);
+            case Direction.Down:
+                return new Vector2(position, -ConnectorBlockedPosition);
+            default:
+                return Vector2.zero;
+        }
+    }
+
+    public List<Brick> GetNeighbours()
+    {
+        var brick = gridManager.grid.content.Find(b => b.position == (Vector2)transform.localPosition);
+        return gridManager.grid.GetBrickNeighbours(brick);
     }
 }

@@ -169,6 +169,12 @@ MonoBehaviour:
   backgroundGridPrefab: {fileID: 379891867876133501, guid: db3a6910183789f49bff602634b8c20e,
     type: 3}
   backgroundParent: {fileID: 310077668}
+  brickPrefab: {fileID: 6973765712275256258, guid: 2e7674a10fd9e8148889659567d0ed12,
+    type: 3}
+  brickParent: {fileID: 1329823857}
+  proceduralGenerateGrid: 0
+  randomizeGrid: 1
+  seed: 3
   grid:
     height: 4
     width: 4
@@ -176,15 +182,31 @@ MonoBehaviour:
     - position: {x: 3, y: 2}
       type: 0
       facingDirection: 0
+      connectors:
+      - direction: 3
+        size: 2
     - position: {x: 2, y: 2}
       type: 1
       facingDirection: 2
+      connectors:
+      - direction: 1
+        size: 2
+      - direction: 2
+        size: 3
+    - position: {x: 3, y: 3}
+      type: 2
+      facingDirection: 0
+      connectors:
+      - direction: 0
+        size: 3
+      - direction: 1
+        size: 1
     - position: {x: 0, y: 0}
       type: -1
-      facingDirection: 2
-  brickPrefab: {fileID: 6973765712275256258, guid: 2e7674a10fd9e8148889659567d0ed12,
-    type: 3}
-  brickParent: {fileID: 1329823857}
+      facingDirection: 3
+      connectors:
+      - direction: 3
+        size: 1
 --- !u!1 &310077667
 GameObject:
   m_ObjectHideFlags: 0
