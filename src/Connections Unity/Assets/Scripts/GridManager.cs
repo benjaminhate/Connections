@@ -5,6 +5,9 @@ using Grid = Objects.Grid;
 
 public class GridManager : MonoBehaviour
 {
+    [Header("Start")]
+    public bool startOnLoad;
+    
     [Header("Background")]
     public GameObject backgroundGridPrefab;
     public Transform backgroundParent;
@@ -17,12 +20,21 @@ public class GridManager : MonoBehaviour
     public bool proceduralGenerateGrid;
     public bool randomizeGrid;
     public int seed;
+    public Difficulty difficulty;
     public Grid grid;
 
     private void Start()
     {
-        CreateGrid();
+        if (startOnLoad)
+        {
+            StartGrid();
+        }
+    }
+
+    public void StartGrid()
+    {
         GenerateGrid();
+        CreateGrid();
     }
 
     private void CreateGrid()
@@ -44,7 +56,7 @@ public class GridManager : MonoBehaviour
     {
         if (proceduralGenerateGrid)
         {
-            grid.GenerateLevel(seed);
+            grid.GenerateLevel(seed, difficulty);
         }
 
         if (randomizeGrid)

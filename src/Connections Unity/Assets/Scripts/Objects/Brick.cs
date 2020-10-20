@@ -1,17 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Random = System.Random;
 
 namespace Objects
 {
     [Serializable]
     public class Brick
     {
-        public Vector2 position;
-        public BrickType type;
-        public Direction facingDirection;
+        public Vector2 position = Vector2.zero;
+        public BrickType type = BrickType.None;
+        public Direction facingDirection = Direction.Down;
 
-        public List<Connector> connectors;
+        public List<Connector> connectors = new List<Connector>();
 
         public bool IsVertical => (type & BrickType.Vertical) != 0;
         public bool IsHorizontal => (type & BrickType.Horizontal) != 0;

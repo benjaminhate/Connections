@@ -13,22 +13,74 @@ namespace Objects
         public int width = 4;
         public List<Brick> content;
 
-        public void GenerateLevel(int seed)
+        public void GenerateLevel(int seed, Difficulty difficulty)
         {
             var random = new Random(seed);
+            var gridSize = difficulty.GridSize();
+            height = (int)gridSize.x;
+            width = (int)gridSize.y;
             content = new List<Brick>();
 
-            for (var i = 0; i < 8; i++)
+            var initialBrick = new Brick
             {
-                var brickType = (BrickType) random.Next(0, 8);
-                
-                content.Add(new Brick
+                position = RandomizeBrickPosition(Vector2.zero, random, true, true),
+                type = BrickTypeHelper.RandomType(random, difficulty)
+            };
+            content.Add(initialBrick);
+
+            var positions = GetBrickEmptyNeighbours(initialBrick);
+            
+            var brickNumber = difficulty.BrickNumber();
+            var stop = false;
+            while (positions.Count > 0 && !stop)
+            {
+                var randomIndex = random.Next(0, positions.Count);
+                var nextPosition = positions[randomIndex];
+                positions.Remove(nextPosition);
+
+                var nextBrick = new Brick
                 {
-                    position = RandomizeBrickPosition(Vector2.zero, random, true, true),
-                    type = brickType,
-                    facingDirection = RandomizeRotation(random)
-                });
+                    position = nextPosition,
+                    type = BrickTypeHelper.RandomType(random, difficulty)
+                };
+                content.Add(nextBrick);
+
+                var neighbours = GetBrickNeighbours(nextBrick);
+                foreach (var neighbour in neighbours)
+                {
+                    var neighbourDirection = GetNeighbourDirection(nextBrick, neighbour);
+                    var connectors = random.Next(1, 5);
+                    
+                    nextBrick.connectors.Add(new Connector
+                    {
+                        direction = neighbourDirection,
+                        size = connectors
+                    });
+                    neighbour.connectors.Add(new Connector
+                    {
+                        direction = neighbourDirection.OppositeDirection(),
+                        size = connectors
+                    });
+                }
+                
+                positions.AddRange(GetBrickEmptyNeighbours(nextBrick).Where(p => !positions.Contains(p)));
+
+                stop = content.Count >= brickNumber;
             }
+        }
+
+        private Direction GetNeighbourDirection(Brick nextBrick, Brick neighbour)
+        {
+            if (nextBrick.position.x > neighbour.position.x)
+                return Direction.Left;
+            if (nextBrick.position.x < neighbour.position.x)
+                return Direction.Right;
+            if (nextBrick.position.y > neighbour.position.y)
+                return Direction.Down;
+            if (nextBrick.position.y < neighbour.position.y)
+                return Direction.Up;
+
+            return Direction.Down;
         }
 
         public void RandomizeLevel(int seed)
@@ -45,22 +97,41 @@ namespace Objects
             return content.Exists(b => b.position == position);
         }
 
-        public List<Brick> GetBrickNeighbours(Brick brick)
+        public bool IsPositionOutOfBounds(Vector2 position)
         {
-            var neighbours = new List<Brick>();
-            
-            neighbours.AddRange(new []
-            {
-                GetBrickNeighbour(brick, Direction.Down),
-                GetBrickNeighbour(brick, Direction.Left),
-                GetBrickNeighbour(brick, Direction.Right),
-                GetBrickNeighbour(brick, Direction.Up)
-            });
-
-            return neighbours.Where(b => b != null).ToList();
+            return position.x < 0 || position.x >= width || position.y < 0 || position.y >= height;
         }
 
-        private Brick GetBrickNeighbour(Brick brick, Direction neighbourDirection)
+        private List<Vector2> GetBrickEmptyNeighbours(Brick brick)
+        {
+            var positions = GetBrickNeighbourPositions(brick)
+                .Where(p => !content.Exists(b => b.position == p))
+                .Where(p => !IsPositionOutOfBounds(p))
+                .ToList();
+
+            return positions;
+        }
+
+        public List<Brick> GetBrickNeighbours(Brick brick)
+        {
+            return GetBrickNeighbourPositions(brick)
+                .Select(p => content.Find(b => b.position == p))
+                .Where(b => b != null)
+                .ToList();
+        }
+
+        private List<Vector2> GetBrickNeighbourPositions(Brick brick)
+        {
+            return new List<Vector2>
+            {
+                GetBrickNeighbourPosition(brick, Direction.Down),
+                GetBrickNeighbourPosition(brick, Direction.Left),
+                GetBrickNeighbourPosition(brick, Direction.Right),
+                GetBrickNeighbourPosition(brick, Direction.Up)
+            };
+        }
+
+        private Vector2 GetBrickNeighbourPosition(Brick brick, Direction neighbourDirection)
         {
             var position = brick.position;
 
@@ -80,7 +151,7 @@ namespace Objects
                     break;
             }
 
-            return content.Find(b => b.position == position);
+            return position;
         }
 
         private Vector2 RandomizeBrickPosition(Vector2 basePosition, Random random, bool isVertical, bool isHorizontal)
@@ -104,12 +175,6 @@ namespace Objects
             return position;
         }
 
-        private Direction RandomizeRotation(Random random)
-        {
-            var randomDirection = random.Next(0, 4);
-            return (Direction) randomDirection;
-        }
-
         private void RandomizeBrick(Brick brick, Random random)
         {
             var position = brick.position;
@@ -122,7 +187,7 @@ namespace Objects
             
             if (brick.IsRotation)
             {
-                facingDirection = RandomizeRotation(random);
+                facingDirection = DirectionHelper.RandomDirection(random);
             }
 
             brick.position = position;
