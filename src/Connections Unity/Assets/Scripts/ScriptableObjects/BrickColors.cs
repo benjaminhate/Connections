@@ -17,14 +17,18 @@ namespace ScriptableObjects
                 return;
             
             var color = colors.Find(c => c.type == target.type);
-            targetSpriteRenderer.color = color?.color ?? Color.white;
+            if (color != null && color.sprite != null)
+            {
+                targetSpriteRenderer.sprite = color.sprite;
+                targetSpriteRenderer.color = Color.white;
+            }
         }
     }
 
     [Serializable]
     public class BrickColor
     {
-        public Color color;
+        public Sprite sprite;
         public BrickType type;
     }
 }

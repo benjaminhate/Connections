@@ -17,6 +17,27 @@ namespace Objects
             return (Direction) random.Next(0, 4);
         }
 
+        public static Direction Add(this Direction direction, uint value)
+        {
+            return (Direction) (((int) direction + value) % 4);
+        }
+
+        public static Direction ComposeDirection(this Direction direction, Direction composition)
+        {
+            switch (composition)
+            {
+                case Direction.Up:
+                    return direction.OppositeDirection();
+                case Direction.Right:
+                    return direction.Add(1);
+                case Direction.Left:
+                    return direction.Add(3);
+                case Direction.Down:
+                default:
+                    return direction;
+            }
+        }
+
         public static Direction OppositeDirection(this Direction direction)
         {
             switch (direction)

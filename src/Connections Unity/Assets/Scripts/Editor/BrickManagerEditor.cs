@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using Objects;
+﻿using Objects;
 using UnityEditor;
 using UnityEngine;
 
@@ -21,7 +20,8 @@ namespace Editor
 
             var height = 0;
             var width = 0;
-            if (brickManager.gridManager != null)
+            var gridManager = brickManager.gridManager;
+            if (gridManager != null)
             {
                 height = brickManager.gridManager.grid.height;
                 width = brickManager.gridManager.grid.width;    
@@ -58,7 +58,22 @@ namespace Editor
             if (neighboursButton)
             {
                 var neighbours = brickManager.GetNeighbours();
-                neighbours.ForEach(n => Debug.Log(n));
+                neighbours.ForEach(Debug.Log);
+            }
+            
+            var checkConnectorsButton = GUILayout.Button("Check Connectors");
+            if (checkConnectorsButton)
+            {
+                if (gridManager == null)
+                {
+                    EditorGUILayout.HelpBox("No GridManager found", MessageType.Warning);
+                }
+                else
+                {
+                    var brick = brickManager.GetBrick();
+                    var check = gridManager.grid.CheckBrickConnectors(brick);
+                    Debug.Log(check);
+                }
             }
         }
 

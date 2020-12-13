@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Objects;
 using ScriptableObjects;
 using UnityEngine;
-using Random = UnityEngine.Random;
 
 public class BrickManager : MonoBehaviour
 {
@@ -19,6 +17,7 @@ public class BrickManager : MonoBehaviour
 
     [Header("Connector")]
     public GameObject connectorPrefab;
+    public Transform connectorParent;
 
     private Direction _facingDirection;
     private bool _isMoving;
@@ -26,21 +25,29 @@ public class BrickManager : MonoBehaviour
     private Vector3 _lastMousePosition;
     private Vector2 _lastPosition;
 
+    private bool _stop;
+
     public bool IsVertical => (type & BrickType.Vertical) != 0;
     public bool IsHorizontal => (type & BrickType.Horizontal) != 0;
     public bool IsRotation => (type & BrickType.Rotation) != 0;
 
     private const float ConnectorBlockedPosition = 0.5625f;
 
+    public delegate void VoidDelegate();
+
+    public event VoidDelegate MouseUpEvent; 
+
     private void Start()
     {
         colors.ChangeColor(this);
         _facingDirection = initialFacingDirection;
-        transform.rotation = Quaternion.Euler(0, 0, _facingDirection.ToAngleRotation());
+        connectorParent.rotation = Quaternion.Euler(0, 0, _facingDirection.ToAngleRotation());
     }
 
     private void OnMouseUp()
     {
+        if (_stop) return;
+        
         if (IsRotation && !_isMoving)
         {
             RotateBrick();
@@ -52,6 +59,8 @@ public class BrickManager : MonoBehaviour
             var newPosition = SnapToGrid();
             gridManager.MoveBrickToPosition(transform, newPosition, _lastPosition);
         }
+        
+        MouseUpEvent?.Invoke();
     }
 
     private void OnMouseOver()
@@ -61,6 +70,8 @@ public class BrickManager : MonoBehaviour
 
     private void OnMouseDrag()
     {
+        if (_stop) return;
+        
         if (!IsHorizontal && !IsVertical)
             return;
 
@@ -87,6 +98,16 @@ public class BrickManager : MonoBehaviour
         transform.position = worldPosition;
     }
 
+    public void Stop()
+    {
+        _stop = true;
+    }
+
+    public void Resume()
+    {
+        _stop = false;
+    }
+
     private Vector2 SnapToGrid()
     {
         var localPosition = transform.localPosition;
@@ -110,8 +131,8 @@ public class BrickManager : MonoBehaviour
 
     private void RotateBrick()
     {
-        _facingDirection = (Direction)(((int)_facingDirection + 1) % 4);
-        transform.rotation = Quaternion.Euler(0, 0, _facingDirection.ToAngleRotation());
+        _facingDirection = _facingDirection.Add(1);
+        gridManager.RotateBrick(transform, connectorParent, _facingDirection);
     }
 
     public void CreateConnectors(List<Connector> connectors)
@@ -151,7 +172,7 @@ public class BrickManager : MonoBehaviour
 
         foreach (var pose in connectorPoses)
         {
-            var connector = Instantiate(connectorPrefab, transform);
+            var connector = Instantiate(connectorPrefab, connectorParent);
             connector.transform.localPosition = pose.position;
             connector.transform.localRotation = pose.rotation;
         }
@@ -176,7 +197,12 @@ public class BrickManager : MonoBehaviour
 
     public List<Brick> GetNeighbours()
     {
-        var brick = gridManager.grid.content.Find(b => b.position == (Vector2)transform.localPosition);
+        var brick = GetBrick();
         return gridManager.grid.GetBrickNeighbours(brick);
+    }
+
+    public Brick GetBrick()
+    {
+        return gridManager.grid.content.Find(b => b.position == (Vector2)transform.localPosition);
     }
 }

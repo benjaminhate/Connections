@@ -24,7 +24,7 @@ namespace Objects
 
         public static int BrickNumber(this Difficulty difficulty)
         {
-            return 4 + 2 * (int) difficulty;
+            return 6 + 2 * (int) difficulty;
         }
     }
 }

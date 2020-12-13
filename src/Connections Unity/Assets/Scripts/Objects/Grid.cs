@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using ScriptableObjects;
 using UnityEngine;
 using Random = System.Random;
 
@@ -13,7 +14,7 @@ namespace Objects
         public int width = 4;
         public List<Brick> content;
 
-        public void GenerateLevel(int seed, Difficulty difficulty)
+        public void GenerateLevel(int seed, Difficulty difficulty, DifficultyBricks difficultyBricks)
         {
             var random = new Random(seed);
             var gridSize = difficulty.GridSize();
@@ -24,7 +25,7 @@ namespace Objects
             var initialBrick = new Brick
             {
                 position = RandomizeBrickPosition(Vector2.zero, random, true, true),
-                type = BrickTypeHelper.RandomType(random, difficulty)
+                type = difficultyBricks.GetRandomBrickType(random, difficulty)
             };
             content.Add(initialBrick);
 
@@ -41,7 +42,7 @@ namespace Objects
                 var nextBrick = new Brick
                 {
                     position = nextPosition,
-                    type = BrickTypeHelper.RandomType(random, difficulty)
+                    type = difficultyBricks.GetRandomBrickType(random, difficulty)
                 };
                 content.Add(nextBrick);
 
@@ -120,6 +121,12 @@ namespace Objects
                 .ToList();
         }
 
+        private Brick GetBrickNeighbourAtDirection(Brick brick, Direction neighbourDirection)
+        {
+            var position = GetBrickNeighbourPosition(brick, neighbourDirection);
+            return IsPositionOutOfBounds(position) ? null : content.Find(b => b.position == position);
+        }
+
         private List<Vector2> GetBrickNeighbourPositions(Brick brick)
         {
             return new List<Vector2>
@@ -192,6 +199,30 @@ namespace Objects
 
             brick.position = position;
             brick.facingDirection = facingDirection;
+        }
+
+        public bool CheckBrickConnectors(Brick brick)
+        {
+            for (var d = 0; d < 4; d++)
+            {
+                var direction = (Direction) d;
+                
+                var connector =
+                    brick.connectors.Find(c => c.direction.ComposeDirection(brick.facingDirection) == direction);
+                if (connector == null) continue;
+
+                var connectorDirection = connector.direction.ComposeDirection(brick.facingDirection);
+                
+                var neighbour = GetBrickNeighbourAtDirection(brick, connectorDirection);
+                var neighbourConnector =
+                    neighbour?.connectors.Find(c =>
+                        c.direction.ComposeDirection(neighbour.facingDirection) ==
+                        connectorDirection.OppositeDirection());
+
+                if (neighbourConnector == null || connector.size != neighbourConnector.size) return false;
+            }
+
+            return true;
         }
     }
 }
